@@ -107,11 +107,6 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.vladmihalcea</groupId>
-			<artifactId>hibernate-types-60</artifactId>
-			<version>2.16.2</version>
-		</dependency>
-		<dependency>
 			<groupId>com.networknt</groupId>
 			<artifactId>json-schema-validator</artifactId>
 			<version>1.0.86</version>
@@ -128,19 +123,9 @@
 			<version>4.4.0</version>
 		</dependency>
 		<dependency>
-			<groupId>com.bazaarvoice.jolt</groupId>
-			<artifactId>json-utils</artifactId>
-			<version>0.1.1</version>
-		</dependency>
-		<dependency>
-			<groupId>com.bazaarvoice.jolt</groupId>
-			<artifactId>jolt-core</artifactId>
-			<version>0.1.1</version>
-		</dependency>
-		<dependency>
 			<groupId>com.datastax.oss</groupId>
 			<artifactId>java-driver-core</artifactId>
-			<version>4.15.0</version> <!-- Use the latest compatible version -->
+			<version>4.15.0</version>
 		</dependency>
 
 		<dependency>
