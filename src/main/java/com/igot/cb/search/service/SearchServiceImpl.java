@@ -171,7 +171,6 @@ public class SearchServiceImpl implements SearchService {
             cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD_COURSES,
                     Constants.TABLE_TRENDING_SEARCH, trendingSearch);
             trendingSearch.put(Constants.LAST_SEARCHED, Instant.now().toString());
-            trendingSearch.put(Constants.SEARCH_COUNT, trendingSearch.get(Constants.SEARCH_COUNT).toString());
             esUtilService.addDocument(Constants.TRENDING_SEARCHES_INDEX_NAME, Constants.INDEX_TYPE, id, trendingSearch, cbServerProperties.getElasticSearchJsonPath());
         } else {
             for (Map<String, Object> record : trendingRecord) {
@@ -182,7 +181,6 @@ public class SearchServiceImpl implements SearchService {
                 cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD_COURSES,
                         Constants.TABLE_TRENDING_SEARCH, record);
                 record.put(Constants.LAST_SEARCHED, Instant.now().toString());
-                record.put(Constants.SEARCH_COUNT, record.get(Constants.SEARCH_COUNT).toString());
                 esUtilService.addDocument(Constants.TRENDING_SEARCHES_INDEX_NAME, Constants.INDEX_TYPE, id, record, cbServerProperties.getElasticSearchJsonPath());
             }
         }

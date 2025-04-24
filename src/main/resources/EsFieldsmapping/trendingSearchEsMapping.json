@@ -6,7 +6,7 @@
     "type": "text"
   },
   "search_count": {
-    "type": "keyword"
+    "type": "integer"
   },
   "last_searched": {
     "type": "date",

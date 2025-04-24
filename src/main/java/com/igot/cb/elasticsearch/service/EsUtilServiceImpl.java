@@ -5,10 +5,7 @@ import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.Refresh;
 import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
-import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
-import co.elastic.clients.elasticsearch._types.aggregations.TermsAggregation;
+import co.elastic.clients.elasticsearch._types.aggregations.*;
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
@@ -47,17 +44,21 @@ public class EsUtilServiceImpl implements EsUtilService {
 
     private final EsConfig esConfig;
     private final ElasticsearchClient elasticsearchClient;
+    private final ObjectMapper objectMapper;
+    private final Set<String> NON_TEXT_FIELDS;
 
     @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private CbServerProperties cbServerProperties;
-
-    @Autowired
-    public EsUtilServiceImpl(ElasticsearchClient elasticsearchClient, EsConfig esConnection) {
+    public EsUtilServiceImpl(ElasticsearchClient elasticsearchClient,
+                             EsConfig esConnection,
+                             ObjectMapper objectMapper,
+                             CbServerProperties cbServerProperties) {
         this.elasticsearchClient = elasticsearchClient;
         this.esConfig = esConnection;
+        this.objectMapper = objectMapper;
+
+        this.NON_TEXT_FIELDS = Arrays.stream(cbServerProperties.getNonTextFields().split(","))
+                .map(String::trim)
+                .collect(Collectors.toSet());
     }
 
 
@@ -89,36 +90,6 @@ public class EsUtilServiceImpl implements EsUtilService {
             return "Successfully indexed document with id: " + response.result();
         } catch (Exception e) {
             log.error("Issue while Indexing to es: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    @Override
-    public String updateDocument(
-            String index, String indexType, String entityId, Map<String, Object> updatedDocument, String JsonFilePath) {
-        try {
-            JsonSchemaFactory schemaFactory = JsonSchemaFactory.getInstance();
-            InputStream schemaStream = schemaFactory.getClass().getResourceAsStream(JsonFilePath);
-            Map<String, Object> map = objectMapper.readValue(schemaStream,
-                    new TypeReference<Map<String, Object>>() {
-                    });
-            Iterator<Entry<String, Object>> iterator = updatedDocument.entrySet().iterator();
-            while (iterator.hasNext()) {
-                Entry<String, Object> entry = iterator.next();
-                String key = entry.getKey();
-                if (!map.containsKey(key)) {
-                    iterator.remove();
-                }
-            }
-            IndexRequest<Map<String, Object>> indexRequest = new IndexRequest.Builder<Map<String, Object>>()
-                    .index(index)
-                    .id(entityId)
-                    .document(updatedDocument)
-                    .refresh(Refresh.True)
-                    .build();
-            IndexResponse response = elasticsearchClient.index(indexRequest);
-            return response.result().jsonValue();
-        } catch (IOException e) {
             return null;
         }
     }
@@ -182,14 +153,25 @@ public class EsUtilServiceImpl implements EsUtilService {
                 Aggregate aggregate = searchResponse
                         .aggregations()
                         .get(field + "_agg");
+
+                List<FacetDTO> fieldValueList = new ArrayList<>();
                 if (aggregate.isSterms()) {
-                    List<FacetDTO> fieldValueList = new ArrayList<>();
                     for (StringTermsBucket bucket : aggregate.sterms().buckets().array()) {
                         if (!bucket.key().stringValue().isEmpty()) {
-                            FacetDTO facetDTO = new FacetDTO(bucket.key().stringValue(), bucket.docCount());
-                            fieldValueList.add(facetDTO);
+                            fieldValueList.add(new FacetDTO(bucket.key().stringValue(), bucket.docCount()));
                         }
                     }
+                } else if (aggregate.isLterms()) { // for long/integer fields
+                    for (LongTermsBucket bucket : aggregate.lterms().buckets().array()) {
+                        fieldValueList.add(new FacetDTO(String.valueOf(bucket.key()), bucket.docCount()));
+                    }
+                } else if (aggregate.isDterms()) { // for double/float fields
+                    for (DoubleTermsBucket bucket : aggregate.dterms().buckets().array()) {
+                        fieldValueList.add(new FacetDTO(String.valueOf(bucket.key()), bucket.docCount()));
+                    }
+                }
+
+                if (!fieldValueList.isEmpty()) {
                     fieldAggregations.put(field, fieldValueList);
                 }
             }
@@ -231,39 +213,43 @@ public class EsUtilServiceImpl implements EsUtilService {
         if (filterCriteriaMap != null) {
             filterCriteriaMap.forEach(
                     (field, value) -> {
+                        String actualField = NON_TEXT_FIELDS.contains(field) ? field + Constants.KEYWORD : field;
+
                         if (field.equals("must_not") && value instanceof ArrayList) {
-                            mustNotQueries.add(Query.of(q ->q.termsSet(t->t.field(field).terms((ArrayList<String>) value))));
+                            mustNotQueries.add(Query.of(q ->q.termsSet(t->t.field(actualField).terms((ArrayList<String>) value))));
                         } else if (value instanceof Boolean) {
-                            boolQueries.add(Query.of(q ->q.term(t->t.field(field).value((boolean)value))));
+                            boolQueries.add(Query.of(q ->q.term(t->t.field(actualField).value((boolean)value))));
                         } else if (value instanceof ArrayList) {
                             List<FieldValue> termsList = ((ArrayList<String>) value).stream()
                                     .map(FieldValue::of)
                                     .collect(Collectors.toList());
-                            boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(field + Constants.KEYWORD).terms(terms -> terms.value(termsList)))));
+                            boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(actualField).terms(terms -> terms.value(termsList)))));
                         } else if (value instanceof String) {
-                            boolQueryBuilder.must(Query.of(q -> q.terms(t ->
-                                    t.field(field + Constants.KEYWORD)
-                                            .terms(terms -> terms.value(List.of(FieldValue.of((String) value))))
-                            )));
+                            boolQueryBuilder.must(Query.of(q -> q.term(t ->
+                                    t.field(actualField)
+                                            .value(FieldValue.of((String) value)))));
+                        } else if (value instanceof Integer) {
+                            boolQueryBuilder.must(Query.of(q -> q.term(t ->
+                                    t.field(actualField)
+                                            .value(FieldValue.of((Integer) value)))));
                         } else if (value instanceof Map) {
                             Map<String, Object> nestedMap = (Map<String, Object>) value;
                             if (isRangeQuery(nestedMap)) {
-                                // Handle range query
                                 BoolQuery.Builder rangeOrNullQuery = QueryBuilders.bool();
                                 RangeQuery.Builder rangeQuery = QueryBuilders.range().field(field);
                                 nestedMap.forEach((rangeOperator, rangeValue) -> {
                                     switch (rangeOperator) {
                                         case Constants.SEARCH_OPERATION_GREATER_THAN_EQUALS:
-                                            rangeQuery.gte((JsonData) rangeValue);
+                                            rangeQuery.gte(JsonData.of(rangeValue));
                                             break;
                                         case Constants.SEARCH_OPERATION_LESS_THAN_EQUALS:
-                                            rangeQuery.lte((JsonData) rangeValue);
+                                            rangeQuery.lte(JsonData.of(rangeValue) );
                                             break;
                                         case Constants.SEARCH_OPERATION_GREATER_THAN:
-                                            rangeQuery.gt((JsonData) rangeValue);
+                                            rangeQuery.gt(JsonData.of(rangeValue) );
                                             break;
                                         case Constants.SEARCH_OPERATION_LESS_THAN:
-                                            rangeQuery.lt((JsonData) rangeValue);
+                                            rangeQuery.lt(JsonData.of(rangeValue) );
                                             break;
                                     }
                                 });
@@ -273,13 +259,16 @@ public class EsUtilServiceImpl implements EsUtilService {
                             } else {
                                 nestedMap.forEach((nestedField, nestedValue) -> {
                                     String fullPath = field + "." + nestedField;
+                                    String fullPathActual = NON_TEXT_FIELDS.contains(fullPath) ? fullPath + Constants.KEYWORD : fullPath;
+
                                     if (nestedValue instanceof Boolean) {
-                                        boolQueryBuilder.must(Query.of(q -> q.term(t -> t.field(fullPath).value((Boolean) nestedValue))));
+                                        boolQueryBuilder.must(Query.of(q -> q.term(t -> t.field(fullPathActual).value((Boolean) nestedValue))));
                                     } else if (nestedValue instanceof String) {
                                         List<FieldValue> termList = Collections.singletonList(FieldValue.of((String) nestedValue));
-                                        boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(fullPath + Constants.KEYWORD).terms((TermsQueryField) termList))));
+                                        boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(fullPathActual).terms((TermsQueryField) termList))));
                                     } else if (nestedValue instanceof ArrayList) {
-                                        boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(fullPath + Constants.KEYWORD).terms((TermsQueryField) nestedValue))));
+                                        List<FieldValue> termList = ((ArrayList<String>) nestedValue).stream().map(FieldValue::of).collect(Collectors.toList());
+                                        boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(fullPathActual).terms(tq -> tq.value(termList)))));
                                     }
                                 });
                             }
@@ -294,14 +283,25 @@ public class EsUtilServiceImpl implements EsUtilService {
     private void addSortToSearchSourceBuilder(
             SearchCriteria searchCriteria, SearchRequest.Builder searchRequestBuilder) {
         if (isNotBlank(searchCriteria.getOrderBy()) && isNotBlank(searchCriteria.getOrderDirection())) {
-            SortOrder sortOrder =
-                    Constants.ASC.equals(searchCriteria.getOrderDirection()) ? SortOrder.Asc : SortOrder.Desc;
-            searchRequestBuilder.sort(SortOptions.of(so -> so
-                    .field(f -> f
-                            .field(searchCriteria.getOrderBy() + Constants.KEYWORD)
-                            .order(sortOrder)
-                    )
-            ));
+            if(searchCriteria.getOrderBy().equalsIgnoreCase("search_count")){
+                SortOrder sortOrder =
+                        Constants.ASC.equals(searchCriteria.getOrderDirection()) ? SortOrder.Asc : SortOrder.Desc;
+                searchRequestBuilder.sort(SortOptions.of(so -> so
+                        .field(f -> f
+                                .field(searchCriteria.getOrderBy())
+                                .order(sortOrder)
+                        )
+                ));
+            }else {
+                SortOrder sortOrder =
+                        Constants.ASC.equals(searchCriteria.getOrderDirection()) ? SortOrder.Asc : SortOrder.Desc;
+                searchRequestBuilder.sort(SortOptions.of(so -> so
+                        .field(f -> f
+                                .field(searchCriteria.getOrderBy() + Constants.KEYWORD)
+                                .order(sortOrder)
+                        )
+                ));
+            }
         }
     }
 
@@ -336,7 +336,11 @@ public class EsUtilServiceImpl implements EsUtilService {
                     .collect(Collectors.toMap(
                             field -> field + "_agg",
                             field -> Aggregation.of(a -> a.terms(
-                                    TermsAggregation.of(t -> t.field(field + ".keyword").size(250))))
+                                    TermsAggregation.of(t -> t
+                                            .field(NON_TEXT_FIELDS.contains(field) ? field + Constants.KEYWORD : field)
+                                            .size(250)
+                                    ))
+                            )
                     ));
             searchRequestBuilder.aggregations(aggregationMap);
         }

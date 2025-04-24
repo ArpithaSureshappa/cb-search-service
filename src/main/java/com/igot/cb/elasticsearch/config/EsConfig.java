@@ -18,16 +18,16 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class EsConfig  {
-    @Value("${elasticsearch.host}")
+    @Value("${elasticsearch.iGotESClient.host}")
     private String elasticsearchHost;
 
-    @Value("${elasticsearch.port}")
+    @Value("${elasticsearch.iGotESClient.port}")
     private int elasticsearchPort;
 
-    @Value("${elasticsearch.username}")
+    @Value("${elasticsearch.iGotESClient.username}")
     private String elasticsearchUsername;
 
-    @Value("${elasticsearch.password}")
+    @Value("${elasticsearch.iGotESClient.password}")
     private String elasticsearchPassword;
 
     @Bean
