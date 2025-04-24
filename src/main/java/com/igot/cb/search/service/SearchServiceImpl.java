@@ -102,7 +102,7 @@ public class SearchServiceImpl implements SearchService {
     public ApiResponse readUserRecentSearches(String token) {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_RECENT_SEARCH_READ);
         String userId = accessTokenValidator.verifyUserToken(token);
-        if (StringUtils.isBlank(userId)) {
+        if (StringUtils.isBlank(userId) || userId.equalsIgnoreCase(Constants.UNAUTHORIZED)) {
             response.getParams().setErrMsg(Constants.USER_ID_DOESNT_EXIST);
             response.setResponseCode(HttpStatus.BAD_REQUEST);
             return response;
@@ -133,7 +133,7 @@ public class SearchServiceImpl implements SearchService {
     public ApiResponse deleteUserRecentSearches(String token) {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_RECENT_SEARCH_DELETE);
         String userId = accessTokenValidator.verifyUserToken(token);
-        if (StringUtils.isBlank(userId)) {
+        if (StringUtils.isBlank(userId) || userId.equalsIgnoreCase(Constants.UNAUTHORIZED)) {
             response.getParams().setErrMsg(Constants.USER_ID_DOESNT_EXIST);
             response.setResponseCode(HttpStatus.BAD_REQUEST);
             return response;
