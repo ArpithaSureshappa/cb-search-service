@@ -13,6 +13,10 @@ import com.datastax.oss.driver.api.querybuilder.delete.DeleteSelection;
 import com.datastax.oss.driver.api.querybuilder.relation.Relation;
 import com.datastax.oss.driver.api.querybuilder.select.Select;
 import com.datastax.oss.driver.api.querybuilder.term.Term;
+import com.datastax.oss.driver.api.querybuilder.update.Assignment;
+import com.datastax.oss.driver.api.querybuilder.update.Update;
+import com.datastax.oss.driver.api.querybuilder.update.UpdateStart;
+import com.datastax.oss.driver.api.querybuilder.update.UpdateWithAssignments;
 import com.igot.cb.util.ApiResponse;
 import com.igot.cb.util.Constants;
 import lombok.extern.slf4j.Slf4j;
@@ -146,40 +150,31 @@ public class CassandraOperationImpl implements CassandraOperation {
     }
 
     @Override
-    public Map<String, Object> updateRecord(
-            String keyspaceName, String tableName, Map<String, Object> request) {
+    public Map<String, Object> updateRecord(String keyspaceName, String tableName, Map<String, Object> updateAttributes,
+                                            Map<String, Object> compositeKey) {
         Map<String, Object> response = new HashMap<>();
-        String query = getUpdateQueryStatement(keyspaceName, tableName, request);
+        CqlSession session = null;
         try {
-            PreparedStatement statement = connectionManager.getSession(keyspaceName).prepare(query);
-            Object[] array = new Object[request.size()];
-            int i = 0;
-            String str = "";
-            int index = query.lastIndexOf(Constants.SET.trim());
-            str = query.substring(index + 4);
-            str = str.replace(Constants.EQUAL_WITH_QUE_MARK, "");
-            str = str.replace(Constants.WHERE_ID, "");
-            str = str.replace(Constants.SEMICOLON, "");
-            String[] arr = str.split(",");
-            for (String key : arr) {
-                array[i++] = request.get(key.trim());
-            }
-            array[i] = request.get(Constants.ID);
-            BoundStatement boundStatement = statement.bind(array);
-            connectionManager.getSession(keyspaceName).execute(boundStatement);
+            session = connectionManager.getSession(keyspaceName);
+            UpdateStart updateStart = QueryBuilder.update(keyspaceName, tableName);
+            UpdateWithAssignments updateWithAssignments = updateStart.set(
+                    updateAttributes.entrySet().stream()
+                            .map(entry -> Assignment.setColumn(entry.getKey(), QueryBuilder.literal(entry.getValue())))
+                            .toArray(Assignment[]::new)
+            );
+            Update update = updateWithAssignments.where(
+                    compositeKey.entrySet().stream()
+                            .map(entry -> Relation.column(entry.getKey()).isEqualTo(QueryBuilder.literal(entry.getValue())))
+                            .toArray(Relation[]::new)
+            );
+            session.execute(update.build());
             response.put(Constants.RESPONSE, Constants.SUCCESS);
-            if (tableName.equalsIgnoreCase(Constants.USER)) {
-                log.info("Cassandra Service updateRecord in user table :" + request);
-            }
         } catch (Exception e) {
-            if (e.getMessage().contains(Constants.UNKNOWN_IDENTIFIER)) {
-                log.error(
-                        Constants.EXCEPTION_MSG_UPDATE + tableName + " : " + e.getMessage(), e);
-                String errMsg = String.format("Exception occurred while updating record to to %s %s", tableName, e.getMessage());
-                response.put(Constants.RESPONSE, Constants.FAILED);
-                response.put(Constants.ERROR_MESSAGE, errMsg);
-            }
-            log.error(Constants.EXCEPTION_MSG_UPDATE + tableName + " : " + e.getMessage(), e);
+            String errMsg = String.format("Exception occurred while updating record to %s %s", tableName, e.getMessage());
+            log.error(errMsg);
+            response.put(Constants.RESPONSE, Constants.FAILED);
+            response.put(Constants.ERROR_MESSAGE, errMsg);
+            throw e;
         }
         return response;
     }
@@ -208,7 +203,7 @@ public class CassandraOperationImpl implements CassandraOperation {
                 if ("asc".equalsIgnoreCase(orderDirection)) {
                     order = ClusteringOrder.ASC;
                 }
-                selectQuery = selectQuery.orderBy("unique_id", order); // or Sort.asc("unique_id")
+                selectQuery = selectQuery.orderBy("timestamp", order); // or Sort.asc("unique_id")
             }
             if (limit != null) selectQuery = selectQuery.limit(limit);
             String queryString = selectQuery.toString();
@@ -237,6 +232,8 @@ public class CassandraOperationImpl implements CassandraOperation {
             response.put(Constants.RESPONSE, Constants.SUCCESS);
         } catch (Exception e) {
             log.error("Exception occurred while deleting from " + tableName + ": " + e.getMessage(), e);
+            response.put(Constants.RESPONSE, Constants.FAILED);
+            response.put(Constants.ERROR_MESSAGE, e.getMessage());
         }
        return response;
     }

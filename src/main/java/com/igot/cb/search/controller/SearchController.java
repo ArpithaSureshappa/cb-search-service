@@ -1,7 +1,6 @@
 package com.igot.cb.search.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.igot.cb.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.search.service.SearchService;
 import com.igot.cb.util.ApiResponse;
 import com.igot.cb.util.Constants;
@@ -30,19 +29,14 @@ public class SearchController {
 
     @DeleteMapping("/v1/recent/delete")
     public ResponseEntity<ApiResponse> deleteUserRecentSearches(@RequestHeader(Constants.X_AUTH_TOKEN) String token) {
-        ApiResponse response = searchService.deleteUserRecentSearches(token);
+        ApiResponse response = searchService.deleteUserAllRecentSearches(token);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
-    @PostMapping("/v1/trending/create")
-    public ResponseEntity<ApiResponse> createTrendingSearches(@RequestBody JsonNode searchQuery) {
-        ApiResponse response = searchService.createUserTrendingSearches(searchQuery);
+    @DeleteMapping("/v1/recent/delete/timestamp/{timestamp}")
+    public ResponseEntity<ApiResponse> deleteUserRecentSearchesByUniqueId(@RequestHeader(Constants.X_AUTH_TOKEN) String token, @PathVariable Long timestamp) {
+        ApiResponse response = searchService.deleteUserRecentSearchesByTimestamp(token,timestamp);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
-    @PostMapping("/v1/trending/read")
-    public ResponseEntity<ApiResponse> readTrendingSearches(@RequestBody SearchCriteria searchCriteria) {
-        ApiResponse response = searchService.readUserTrendingSearches(searchCriteria);
-        return new ResponseEntity<>(response, response.getResponseCode());
-    }
 }

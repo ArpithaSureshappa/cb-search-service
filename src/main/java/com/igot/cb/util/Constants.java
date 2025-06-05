@@ -63,7 +63,7 @@ public class Constants {
     public static final String UNKNOWN_IDENTIFIER = "Unknown identifier ";
     public static final String EXCEPTION_MSG_UPDATE = "Exception occurred while updating record to ";
     public static final String API_RECENT_SEARCH_CREATE = "api.recent.search.create";
-    public static final String TABLE_USER_RECENT_SEARCH = "user_recent_searches_test";
+    public static final String TABLE_USER_RECENT_SEARCH = "user_recent_searches";
     public static final String API_RECENT_SEARCH_READ = "api.recent.search.read";
     public static final String API_TRENDING_SEARCH_CREATE = "api.trending.search.create";
     public static final String API_RECENT_SEARCH_DELETE = "api.recent.search.delete";
@@ -74,10 +74,17 @@ public class Constants {
     public static final String QUERY_ID = "query_id";
     public static final String SEARCH_COUNT = "search_count";
     public static final String LAST_SEARCHED = "last_searched";
-    public static final String SEARCH_QUERY = "searchQuery";
     public static final String USERID = "user_id";
-    public static final String SEARCH_QUERY_KEY = "search_query";
     public static final String UNIQUE_ID = "unique_id";
+    public static final String SEARCH_CATEGORY = "search_category";
+    public static final String SEARCH_CATEGORY_KEY = "searchCategory";
+    public static final String PROCESSED_QUERY = "processedQuery";
+    public static final String ACTUAL_QUERY = "actualQuery";
+    public static final String TIMESTAMP = "timestamp";
+    public static final String NLP_SEARCH_QUERY = "nlp_search_query";
+    public static final String SEARCH_QUERY_KEY = "searchQuery";
+    public static final String NLP_SEARCH_QUERY_KEY = "nlpSearchQuery";
+    public static final String SEARCH_QUERY = "search_query";
 
 
     private Constants() {

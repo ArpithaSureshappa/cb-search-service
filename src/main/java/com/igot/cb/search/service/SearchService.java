@@ -1,8 +1,6 @@
 package com.igot.cb.search.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-
-import com.igot.cb.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.util.ApiResponse;
 import org.springframework.stereotype.Service;
 
@@ -13,9 +11,7 @@ public interface SearchService {
 
     ApiResponse readUserRecentSearches(String token);
 
-    ApiResponse deleteUserRecentSearches(String token);
+    ApiResponse deleteUserAllRecentSearches(String token);
 
-    ApiResponse createUserTrendingSearches(JsonNode searchQuery);
-
-    ApiResponse readUserTrendingSearches(SearchCriteria searchCriteria);
+    ApiResponse deleteUserRecentSearchesByTimestamp(String token,Long timestamp);
 }
