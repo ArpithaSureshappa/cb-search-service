@@ -31,6 +31,7 @@ public class SearchServiceImpl implements SearchService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
     @Override
     public ApiResponse createUserRecentSearches(JsonNode searchQuery, String token) {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_RECENT_SEARCH_CREATE);
@@ -63,7 +64,7 @@ public class SearchServiceImpl implements SearchService {
                 Constants.KEYSPACE_SUNBIRD_COURSES,
                 Constants.TABLE_USER_RECENT_SEARCH,
                 queryMap,
-                10,
+                null,
                 null
         );
 
@@ -78,12 +79,15 @@ public class SearchServiceImpl implements SearchService {
         userSearchQuery.put(Constants.NLP_SEARCH_QUERY, nlpSearchQuery);
         userSearchQuery.put(Constants.SEARCH_CATEGORY, categorySet);
         userSearchQuery.put(Constants.SEARCH_QUERY, actualQuery);
+        userSearchQuery.put(Constants.IS_ACTIVE, true);
 
         if (matchedRecordOpt.isPresent()) {
             Map<String, Object> matchedRecord = matchedRecordOpt.get();
             Map<String, Object> compositeKey = Map.of(
                     Constants.USERID, userId,
+                    Constants.IS_ACTIVE, matchedRecord.get(Constants.IS_ACTIVE),
                     Constants.TIMESTAMP, matchedRecord.get(Constants.TIMESTAMP)
+
             );
             cassandraOperation.deleteRecord(Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_RECENT_SEARCH, compositeKey);
             Set<String> existingCategories = (Set<String>) matchedRecord.get(Constants.SEARCH_CATEGORY);
@@ -133,7 +137,7 @@ public class SearchServiceImpl implements SearchService {
         if (StringUtils.isNotEmpty(cachedJson)) {
             log.info("SearchServiceImpl::read:Record coming from redis cache");
             try {
-                List<Map<String, Object>> result= objectMapper.readValue(cachedJson, new TypeReference<List<Map<String, Object>>>() {
+                List<Map<String, Object>> result = objectMapper.readValue(cachedJson, new TypeReference<List<Map<String, Object>>>() {
                 });
                 response.put("searchQueries", result);
             } catch (JsonProcessingException e) {
@@ -142,6 +146,7 @@ public class SearchServiceImpl implements SearchService {
         } else {
             Map<String, Object> propertyMap = new HashMap<>();
             propertyMap.put(Constants.USERID, userId);
+            propertyMap.put(Constants.IS_ACTIVE,true);
             List<Map<String, Object>> userSearchList = cassandraOperation.getRecordsByOrder(Constants.KEYSPACE_SUNBIRD_COURSES,
                     Constants.TABLE_USER_RECENT_SEARCH,
                     propertyMap,
@@ -177,18 +182,29 @@ public class SearchServiceImpl implements SearchService {
         }
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put(Constants.USERID, userId);
-        Map<String, Object> deleteResponse = cassandraOperation.deleteRecord(
+
+        List<Map<String, Object>> records = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
                 Constants.KEYSPACE_SUNBIRD_COURSES,
                 Constants.TABLE_USER_RECENT_SEARCH,
-                propertyMap
-        );
-        if (!Constants.SUCCESS.equals(deleteResponse.get(Constants.RESPONSE))) {
-            return errorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR, deleteResponse.get("errmsg").toString());
-        }else {
-            cacheService.deleteCache(userId);
-            response.setResponseCode(HttpStatus.OK);
-            response.setResult(deleteResponse);
+                propertyMap,
+                null,
+                null);
+
+        for (Map<String, Object> record : records) {
+            Map<String, Object> updateMap = new HashMap<>(record);
+            updateMap.put("is_active", false);
+            Map<String, Object> primaryKey = new HashMap<>();
+            primaryKey.put("user_id", userId);
+            primaryKey.put("timestamp", record.get(Constants.TIMESTAMP));
+            primaryKey.put(Constants.IS_ACTIVE, true);
+            cassandraOperation.deleteRecord(Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_RECENT_SEARCH, primaryKey);
+            cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_RECENT_SEARCH, updateMap);
         }
+        Map<String, Object> deleteResponse = new HashMap<>();
+        deleteResponse.put("result", "All recent searches deleted successfully");
+        cacheService.deleteCache(userId);
+        response.setResponseCode(HttpStatus.OK);
+        response.setResult(deleteResponse);
         return response;
     }
 
@@ -205,18 +221,37 @@ public class SearchServiceImpl implements SearchService {
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put(Constants.USERID, userId);
         propertyMap.put(Constants.TIMESTAMP, timestamp);
-        Map<String, Object> deleteResponse = cassandraOperation.deleteRecord(
+        propertyMap.put(Constants.IS_ACTIVE, true);
+        List<Map<String, Object>> records = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
                 Constants.KEYSPACE_SUNBIRD_COURSES,
                 Constants.TABLE_USER_RECENT_SEARCH,
-                propertyMap
-        );
-        if (!Constants.SUCCESS.equals(deleteResponse.get(Constants.RESPONSE))) {
-            return errorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR, deleteResponse.get("errmsg").toString());
-        }else {
+                propertyMap,
+                null,
+                null);
+
+        if (!records.isEmpty()) {
+            Map<String, Object> record = records.get(0);
+            Map<String, Object> primaryKey = new HashMap<>();
+            primaryKey.put("user_id", userId);
+            primaryKey.put("timestamp", record.get(Constants.TIMESTAMP));
+            primaryKey.put(Constants.IS_ACTIVE, true);
+            record.put(Constants.IS_ACTIVE, false);
+            cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_RECENT_SEARCH, record);
+            Map<String, Object> deleteResult = cassandraOperation.deleteRecord(Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_RECENT_SEARCH, propertyMap);
+            if (!Constants.SUCCESS.equalsIgnoreCase(String.valueOf(deleteResult.get(Constants.RESPONSE)))) {
+                return errorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR, String.valueOf(deleteResult.get("errmsg")));
+            }
             cacheService.deleteCache(userId);
-            response.setResponseCode(HttpStatus.OK);
-            response.setResult(deleteResponse);
+        } else {
+            log.error("SearchServiceImpl::deleteUserRecentSearchesByTimestamp: No recent search found for userId: {} and timestamp: {}", userId, timestamp);
+            return errorResponse(response, HttpStatus.NOT_FOUND, "No recent search found for the given userid and timestamp");
         }
+        Map<String, Object> deleteResponse = new HashMap<>();
+        deleteResponse.put("result", "Recent search deleted successfully");
+
+        response.setResponseCode(HttpStatus.OK);
+        response.setResult(deleteResponse);
+
         return response;
     }
 }

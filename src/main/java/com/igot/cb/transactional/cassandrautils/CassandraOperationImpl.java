@@ -198,13 +198,6 @@ public class CassandraOperationImpl implements CassandraOperation {
             Select selectQuery = null;
             selectQuery = processQuery(keyspaceName, tableName, propertyMap, null);
             CqlSession session = connectionManager.getSession(keyspaceName);
-            if (propertyMap.containsKey("user_id")) {
-                ClusteringOrder order = ClusteringOrder.DESC;
-                if ("asc".equalsIgnoreCase(orderDirection)) {
-                    order = ClusteringOrder.ASC;
-                }
-                selectQuery = selectQuery.orderBy("timestamp", order); // or Sort.asc("unique_id")
-            }
             if (limit != null) selectQuery = selectQuery.limit(limit);
             String queryString = selectQuery.toString();
             SimpleStatement statement = SimpleStatement.newInstance(queryString);

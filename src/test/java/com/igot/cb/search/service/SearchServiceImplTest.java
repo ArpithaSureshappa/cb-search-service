@@ -18,14 +18,10 @@ import org.springframework.http.HttpStatus;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @ExtendWith(MockitoExtension.class)
 class SearchServiceImplTest {
@@ -51,8 +47,13 @@ class SearchServiceImplTest {
         JsonNode searchQuery = new ObjectMapper().readTree("{\"nlpSearchQuery\":\"query1\",\"searchCategory\":\"category1\",\"searchQuery\":\"query1\"}");
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-        when(cassandraOperation.getRecordsByOrder(anyString(), anyString(), anyMap(), anyInt(), any()))
-                .thenReturn(Collections.emptyList());
+        when(cassandraOperation.getRecordsByOrder(
+                eq(Constants.KEYSPACE_SUNBIRD_COURSES),
+                eq(Constants.TABLE_USER_RECENT_SEARCH),
+                anyMap(),
+                isNull(),
+                isNull()
+        )).thenReturn(Collections.emptyList());
         ApiResponse mockApiResponse = new ApiResponse();
         mockApiResponse.put(Constants.RESPONSE, Constants.SUCCESS);
 
@@ -104,16 +105,33 @@ class SearchServiceImplTest {
         String userId = "user123";
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-        Map<String, Object> deleteResponse = new HashMap<>();
-        deleteResponse.put(Constants.RESPONSE, Constants.SUCCESS);
+
+        // Sample active record
+        Map<String, Object> record = new HashMap<>();
+        record.put("user_id", userId);
+        record.put("timestamp", 123456789L);
+        record.put("search_query", "test");
+        record.put("is_active", true);
+        List<Map<String, Object>> records = List.of(record);
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), isNull(), isNull())).thenReturn(records);
+
         when(cassandraOperation.deleteRecord(anyString(), anyString(), anyMap()))
-                .thenReturn(deleteResponse);
+                .thenReturn(Collections.singletonMap(Constants.RESPONSE, Constants.SUCCESS));
+
+        when(cassandraOperation.insertRecord(anyString(), anyString(), anyMap()))
+                .thenReturn(Collections.singletonMap(Constants.RESPONSE, Constants.SUCCESS));
 
         ApiResponse response = searchServiceImpl.deleteUserAllRecentSearches(token);
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals("All recent searches deleted successfully", response.getResult().get("result"));
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+
+        verify(cacheService).deleteCache(userId);
     }
+
 
     @Test
     void deleteUserRecentSearchesByTimestamp_deletesSuccessfully() {
@@ -122,16 +140,35 @@ class SearchServiceImplTest {
         Long timestamp = 123456789L;
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
-        Map<String, Object> deleteResponse = new HashMap<>();
-        deleteResponse.put(Constants.RESPONSE, Constants.SUCCESS);
+
+        // Prepare record
+        Map<String, Object> record = new HashMap<>();
+        record.put("user_id", userId);
+        record.put("timestamp", timestamp);
+        record.put("search_query", "AI");
+        record.put("nlp_search_query", "Artificial Intelligence");
+        record.put("search_category", Set.of("course"));
+        record.put("is_active", true);
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), isNull(), isNull())
+        ).thenReturn(List.of(record));
+
+        when(cassandraOperation.insertRecord(anyString(), anyString(), anyMap()))
+                .thenReturn(Collections.singletonMap(Constants.RESPONSE, Constants.SUCCESS));
+
         when(cassandraOperation.deleteRecord(anyString(), anyString(), anyMap()))
-                .thenReturn(deleteResponse);
+                .thenReturn(Collections.singletonMap(Constants.RESPONSE, Constants.SUCCESS));
 
         ApiResponse response = searchServiceImpl.deleteUserRecentSearchesByTimestamp(token, timestamp);
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals("Recent search deleted successfully", response.getResult().get("result"));
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+
+        verify(cacheService).deleteCache(userId);
     }
+
 
     @Test
     void createUserRecentSearches_returnsErrorWhenSearchQueryIsNull() {
@@ -223,7 +260,27 @@ class SearchServiceImplTest {
         String userId = "user123";
         Long timestamp = 123456789L;
 
+        // Mock verified user
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+
+        // Mock that a record exists
+        Map<String, Object> existingRecord = new HashMap<>();
+        existingRecord.put(Constants.USERID, userId);
+        existingRecord.put(Constants.TIMESTAMP, timestamp);
+        existingRecord.put(Constants.SEARCH_QUERY, "AI course");
+        existingRecord.put(Constants.NLP_SEARCH_QUERY, "artificial intelligence");
+        existingRecord.put(Constants.IS_ACTIVE, true);
+        existingRecord.put(Constants.SEARCH_CATEGORY, Set.of("course"));
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), isNull(), isNull()))
+                .thenReturn(List.of(existingRecord));
+
+        // Mock insert succeeds
+        when(cassandraOperation.insertRecord(anyString(), anyString(), anyMap()))
+                .thenReturn(Map.of(Constants.RESPONSE, Constants.SUCCESS));
+
+        // Mock delete fails
         when(cassandraOperation.deleteRecord(anyString(), anyString(), anyMap()))
                 .thenReturn(Map.of(Constants.RESPONSE, Constants.FAILED, "errmsg", "Delete operation failed"));
 
@@ -233,4 +290,5 @@ class SearchServiceImplTest {
         assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals("Delete operation failed", response.getParams().getErrMsg());
     }
+
 }

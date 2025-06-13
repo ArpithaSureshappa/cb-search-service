@@ -85,6 +85,8 @@ public class Constants {
     public static final String SEARCH_QUERY_KEY = "searchQuery";
     public static final String NLP_SEARCH_QUERY_KEY = "nlpSearchQuery";
     public static final String SEARCH_QUERY = "search_query";
+    public static final String IS_ACTIVE = "is_active";
+
 
 
     private Constants() {
