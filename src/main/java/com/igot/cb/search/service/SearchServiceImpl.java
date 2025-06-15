@@ -68,10 +68,27 @@ public class SearchServiceImpl implements SearchService {
                 null
         );
 
-        Optional<Map<String, Object>> matchedRecordOpt = existingSearches.stream()
+        List<Map<String, Object>> duplicateRecords = existingSearches.stream()
                 .filter(record -> actualQuery.equalsIgnoreCase((String) record.get(Constants.SEARCH_QUERY)))
-                .findFirst();
+                .toList();
 
+        for (Map<String, Object> record : duplicateRecords) {
+            Map<String, Object> compositeKey = Map.of(
+                    Constants.USERID, userId,
+                    Constants.IS_ACTIVE, record.get(Constants.IS_ACTIVE),
+                    Constants.TIMESTAMP, record.get(Constants.TIMESTAMP)
+            );
+
+            cassandraOperation.deleteRecord(Constants.KEYSPACE_SUNBIRD_COURSES,
+                    Constants.TABLE_USER_RECENT_SEARCH, compositeKey);
+
+            if (Boolean.TRUE.equals(record.get(Constants.IS_ACTIVE))) {
+                Set<String> existingCategories = (Set<String>) record.get(Constants.SEARCH_CATEGORY);
+                if (existingCategories != null) {
+                    categorySet.addAll(existingCategories);
+                }
+            }
+        }
         long currentTimestamp = System.currentTimeMillis();
         Map<String, Object> userSearchQuery = new HashMap<>();
         userSearchQuery.put(Constants.USERID, userId);
@@ -80,22 +97,6 @@ public class SearchServiceImpl implements SearchService {
         userSearchQuery.put(Constants.SEARCH_CATEGORY, categorySet);
         userSearchQuery.put(Constants.SEARCH_QUERY, actualQuery);
         userSearchQuery.put(Constants.IS_ACTIVE, true);
-
-        if (matchedRecordOpt.isPresent()) {
-            Map<String, Object> matchedRecord = matchedRecordOpt.get();
-            Map<String, Object> compositeKey = Map.of(
-                    Constants.USERID, userId,
-                    Constants.IS_ACTIVE, matchedRecord.get(Constants.IS_ACTIVE),
-                    Constants.TIMESTAMP, matchedRecord.get(Constants.TIMESTAMP)
-
-            );
-            cassandraOperation.deleteRecord(Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_RECENT_SEARCH, compositeKey);
-            Set<String> existingCategories = (Set<String>) matchedRecord.get(Constants.SEARCH_CATEGORY);
-            if (existingCategories != null) {
-                categorySet.addAll(existingCategories);
-            }
-            userSearchQuery.put(Constants.SEARCH_CATEGORY, categorySet);
-        }
 
         ApiResponse dbResponse = (ApiResponse) cassandraOperation.insertRecord(
                 Constants.KEYSPACE_SUNBIRD_COURSES,
