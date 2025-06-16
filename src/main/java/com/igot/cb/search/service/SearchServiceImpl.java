@@ -32,6 +32,9 @@ public class SearchServiceImpl implements SearchService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private CbServerProperties cbServerProperties;
+
     @Override
     public ApiResponse createUserRecentSearches(JsonNode searchQuery, String token) {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_RECENT_SEARCH_CREATE);
@@ -151,7 +154,7 @@ public class SearchServiceImpl implements SearchService {
             List<Map<String, Object>> userSearchList = cassandraOperation.getRecordsByOrder(Constants.KEYSPACE_SUNBIRD_COURSES,
                     Constants.TABLE_USER_RECENT_SEARCH,
                     propertyMap,
-                    10,
+                    cbServerProperties.getRecentSearchesLimit(),
                     Constants.ORDER_DESC
             );
 
