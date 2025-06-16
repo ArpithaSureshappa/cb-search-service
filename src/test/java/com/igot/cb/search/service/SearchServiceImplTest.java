@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.authentication.util.AccessTokenValidator;
 import com.igot.cb.transactional.cassandrautils.CassandraOperation;
 import com.igot.cb.util.ApiResponse;
+import com.igot.cb.util.CbServerProperties;
 import com.igot.cb.util.Constants;
 import com.igot.cb.util.redis.cache.CacheService;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,9 @@ class SearchServiceImplTest {
 
     @InjectMocks
     private SearchServiceImpl searchServiceImpl;
+
+    @Mock
+    private CbServerProperties cbServerProperties;
 
     @Test
     void createUserRecentSearches_savesSearchSuccessfully() throws JsonProcessingException {
@@ -218,6 +222,7 @@ class SearchServiceImplTest {
         String userId = "user123";
 
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(cbServerProperties.getRecentSearchesLimit()).thenReturn(10);
         when(cassandraOperation.getRecordsByOrder(anyString(), anyString(), anyMap(), anyInt(), any()))
                 .thenReturn(Collections.emptyList());
 
