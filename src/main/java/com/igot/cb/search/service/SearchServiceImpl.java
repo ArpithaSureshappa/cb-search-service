@@ -72,21 +72,21 @@ public class SearchServiceImpl implements SearchService {
         );
 
         List<Map<String, Object>> duplicateRecords = existingSearches.stream()
-                .filter(record -> actualQuery.equalsIgnoreCase((String) record.get(Constants.SEARCH_QUERY)))
+                .filter(recordMap -> actualQuery.equalsIgnoreCase((String) recordMap.get(Constants.SEARCH_QUERY)))
                 .toList();
 
-        for (Map<String, Object> record : duplicateRecords) {
+        for (Map<String, Object> recordMap : duplicateRecords) {
             Map<String, Object> compositeKey = Map.of(
                     Constants.USERID, userId,
-                    Constants.IS_ACTIVE, record.get(Constants.IS_ACTIVE),
-                    Constants.TIMESTAMP, record.get(Constants.TIMESTAMP)
+                    Constants.IS_ACTIVE, recordMap.get(Constants.IS_ACTIVE),
+                    Constants.TIMESTAMP, recordMap.get(Constants.TIMESTAMP)
             );
 
             cassandraOperation.deleteRecord(Constants.KEYSPACE_SUNBIRD_COURSES,
                     Constants.TABLE_USER_RECENT_SEARCH, compositeKey);
 
-            if (Boolean.TRUE.equals(record.get(Constants.IS_ACTIVE))) {
-                Set<String> existingCategories = (Set<String>) record.get(Constants.SEARCH_CATEGORY);
+            if (Boolean.TRUE.equals(recordMap.get(Constants.IS_ACTIVE))) {
+                Set<String> existingCategories = (Set<String>) recordMap.get(Constants.SEARCH_CATEGORY);
                 if (existingCategories != null) {
                     categorySet.addAll(existingCategories);
                 }
@@ -194,12 +194,12 @@ public class SearchServiceImpl implements SearchService {
                 null,
                 null);
 
-        for (Map<String, Object> record : records) {
-            Map<String, Object> updateMap = new HashMap<>(record);
+        for (Map<String, Object> recordMap : records) {
+            Map<String, Object> updateMap = new HashMap<>(recordMap);
             updateMap.put("is_active", false);
             Map<String, Object> primaryKey = new HashMap<>();
             primaryKey.put("user_id", userId);
-            primaryKey.put("timestamp", record.get(Constants.TIMESTAMP));
+            primaryKey.put("timestamp", recordMap.get(Constants.TIMESTAMP));
             primaryKey.put(Constants.IS_ACTIVE, true);
             cassandraOperation.deleteRecord(Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_RECENT_SEARCH, primaryKey);
             cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_RECENT_SEARCH, updateMap);
@@ -234,13 +234,13 @@ public class SearchServiceImpl implements SearchService {
                 null);
 
         if (!records.isEmpty()) {
-            Map<String, Object> record = records.get(0);
+            Map<String, Object> recordMap = records.get(0);
             Map<String, Object> primaryKey = new HashMap<>();
             primaryKey.put("user_id", userId);
-            primaryKey.put("timestamp", record.get(Constants.TIMESTAMP));
+            primaryKey.put("timestamp", recordMap.get(Constants.TIMESTAMP));
             primaryKey.put(Constants.IS_ACTIVE, true);
-            record.put(Constants.IS_ACTIVE, false);
-            cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_RECENT_SEARCH, record);
+            recordMap.put(Constants.IS_ACTIVE, false);
+            cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_RECENT_SEARCH, recordMap);
             Map<String, Object> deleteResult = cassandraOperation.deleteRecord(Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_RECENT_SEARCH, propertyMap);
             if (!Constants.SUCCESS.equalsIgnoreCase(String.valueOf(deleteResult.get(Constants.RESPONSE)))) {
                 return errorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR, String.valueOf(deleteResult.get("errmsg")));

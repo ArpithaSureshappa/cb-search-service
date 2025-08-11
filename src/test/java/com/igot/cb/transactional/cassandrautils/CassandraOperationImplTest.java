@@ -1,10 +1,7 @@
 package com.igot.cb.transactional.cassandrautils;
 
 import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.cql.BoundStatement;
-import com.datastax.oss.driver.api.core.cql.PreparedStatement;
-import com.datastax.oss.driver.api.core.cql.ResultSet;
-import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.querybuilder.select.Select;
 import com.igot.cb.util.ApiResponse;
 import com.igot.cb.util.Constants;
@@ -121,10 +118,10 @@ class CassandraOperationImplTest {
         when(connectionManager.getSession(anyString())).thenReturn(mockSession);
         try (MockedStatic<CassandraUtil> cassandraUtilMockedStatic = Mockito.mockStatic(CassandraUtil.class)) {
             List<Map<String, Object>> expectedResponse = new ArrayList<>();
-            Map<String, Object> record = new HashMap<>();
-            record.put("id", "123");
-            record.put("name", "Test");
-            expectedResponse.add(record);
+            Map<String, Object> recordMap = new HashMap<>();
+            recordMap.put("id", "123");
+            recordMap.put("name", "Test");
+            expectedResponse.add(recordMap);
 
             cassandraUtilMockedStatic.when(() -> CassandraUtil.createResponse(any(ResultSet.class)))
                     .thenReturn(expectedResponse);
@@ -150,10 +147,10 @@ class CassandraOperationImplTest {
         when(connectionManager.getSession(anyString())).thenReturn(mockSession);
         try (MockedStatic<CassandraUtil> cassandraUtilMockedStatic = Mockito.mockStatic(CassandraUtil.class)) {
             List<Map<String, Object>> expectedResponse = new ArrayList<>();
-            Map<String, Object> record = new HashMap<>();
-            record.put("id", "123");
-            record.put("name", "Test");
-            expectedResponse.add(record);
+            Map<String, Object> recordMap = new HashMap<>();
+            recordMap.put("id", "123");
+            recordMap.put("name", "Test");
+            expectedResponse.add(recordMap);
 
             cassandraUtilMockedStatic.when(() -> CassandraUtil.createResponse(any(ResultSet.class)))
                     .thenReturn(expectedResponse);
@@ -195,10 +192,10 @@ class CassandraOperationImplTest {
         when(connectionManager.getSession(anyString())).thenReturn(mockSession);
         try (MockedStatic<CassandraUtil> cassandraUtilMockedStatic = mockStatic(CassandraUtil.class)) {
             List<Map<String, Object>> expectedResponse = new ArrayList<>();
-            Map<String, Object> record = new HashMap<>();
-            record.put("id", "123");
-            record.put("timestamp", "2023-01-01T00:00:00Z");
-            expectedResponse.add(record);
+            Map<String, Object> recordMap = new HashMap<>();
+            recordMap.put("id", "123");
+            recordMap.put("timestamp", "2023-01-01T00:00:00Z");
+            expectedResponse.add(recordMap);
 
             cassandraUtilMockedStatic.when(() -> CassandraUtil.createResponse(any(ResultSet.class)))
                     .thenReturn(expectedResponse);
@@ -327,5 +324,145 @@ class CassandraOperationImplTest {
         assertNotNull(method);
         method.setAccessible(true);
         return method;
+    }
+
+    @Test
+    void testGetUpdateQueryStatement() {
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put(Constants.ID, 1);
+        input.put("name", "abc");
+        input.put("age", 25);
+
+        String result = CassandraOperationImpl.getUpdateQueryStatement("ks", "table", input);
+
+        assertTrue(result.startsWith(Constants.UPDATE + "ks" + Constants.DOT + "table" + Constants.SET));
+        assertTrue(result.contains("name = ?"));
+        assertTrue(result.contains("age = ?"));
+        assertTrue(result.contains(Constants.WHERE_ID));
+    }
+
+    @Test
+    void testDeleteRecord_success() {
+        // Arrange
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put("id", 123);
+
+        when(connectionManager.getSession(keyspaceName)).thenReturn(mockSession);
+        // Mock successful execution
+        when(mockSession.execute(any(SimpleStatement.class))).thenReturn(null);
+
+        // Act
+        Map<String, Object> response = cassandraOperation.deleteRecord(keyspaceName, tableName, propertyMap);
+
+        // Assert
+        assertEquals(Constants.SUCCESS, response.get(Constants.RESPONSE));
+        verify(connectionManager).getSession(keyspaceName);
+        verify(mockSession).execute(any(SimpleStatement.class));
+    }
+
+    @Test
+    void testDeleteRecord_exception() {
+        // Arrange
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put("id", 123);
+
+        when(connectionManager.getSession(keyspaceName)).thenThrow(new RuntimeException("DB connection error"));
+
+        // Act
+        Map<String, Object> response = cassandraOperation.deleteRecord(keyspaceName, tableName, propertyMap);
+
+        // Assert
+        assertEquals(Constants.FAILED, response.get(Constants.RESPONSE));
+        assertEquals("DB connection error", response.get(Constants.ERROR_MESSAGE));
+        verify(connectionManager).getSession(keyspaceName);
+    }
+
+    @Test
+    void testGetRecordsByPropertiesByKey_withListValue_success() {
+        // Given
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put("col1", Arrays.asList("val1", "val2"));
+        List<String> fields = Arrays.asList("col1", "col2");
+
+        try (MockedStatic<CassandraUtil> utilMock = mockStatic(CassandraUtil.class)) {
+            utilMock.when(() -> CassandraUtil.createResponse(mockResultSet))
+                    .thenReturn(Collections.singletonList(Map.of("col1", "val1")));
+
+            List<Map<String, Object>> result = cassandraOperationImpl.getRecordsByPropertiesByKey(
+                    "ks1", "tbl1", propertyMap, fields, "someKey");
+
+            assertEquals(0, result.size());
+        }
+    }
+
+    @Test
+    void testGetRecordsByPropertiesByKey_withSingleValue_success() {
+        // Given
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put("col1", "val1");
+        List<String> fields = Collections.emptyList();
+
+        try (MockedStatic<CassandraUtil> utilMock = mockStatic(CassandraUtil.class)) {
+            utilMock.when(() -> CassandraUtil.createResponse(mockResultSet))
+                    .thenReturn(Collections.singletonList(Map.of("col1", "val1")));
+
+            List<Map<String, Object>> result = cassandraOperationImpl.getRecordsByPropertiesByKey(
+                    "ks1", "tbl1", propertyMap, fields, "someKey");
+
+            assertEquals(0, result.size());
+        }
+    }
+
+    @Test
+    void testGetRecordsByPropertiesByKey_emptyPropertyMap() {
+        // Given
+        Map<String, Object> propertyMap = Collections.emptyMap();
+        List<String> fields = Arrays.asList("col1");
+
+        try (MockedStatic<CassandraUtil> utilMock = mockStatic(CassandraUtil.class)) {
+            utilMock.when(() -> CassandraUtil.createResponse(mockResultSet))
+                    .thenReturn(Collections.emptyList());
+
+            List<Map<String, Object>> result = cassandraOperationImpl.getRecordsByPropertiesByKey(
+                    "ks1", "tbl1", propertyMap, fields, "someKey");
+
+            assertTrue(result.isEmpty());
+        }
+    }
+
+    @Test
+    void testGetRecordsByPropertiesByKey_exceptionCase() {
+        // Given
+        Map<String, Object> propertyMap = Collections.emptyMap();
+        List<String> fields = Arrays.asList("col1");
+
+        List<Map<String, Object>> result = cassandraOperationImpl.getRecordsByPropertiesByKey(
+                "ks1", "tbl1", propertyMap, fields, "someKey");
+
+        assertTrue(result.isEmpty()); // fallback to empty list
+    }
+
+    @Test
+    void testPrivateMethod_processQuery_withReflection() throws Exception {
+        Method method = CassandraOperationImpl.class.getDeclaredMethod("processQuery",
+                String.class, String.class, Map.class, List.class);
+        method.setAccessible(true);
+
+        // Case 1: Empty propertyMap
+        Map<String, Object> emptyMap = Collections.emptyMap();
+        Select select = (Select) method.invoke(cassandraOperationImpl, "ks1", "tbl1", emptyMap, Arrays.asList("col1"));
+        assertNotNull(select);
+
+        // Case 2: propertyMap with List value
+        Map<String, Object> listMap = new HashMap<>();
+        listMap.put("col1", Arrays.asList("v1"));
+        Select select2 = (Select) method.invoke(cassandraOperationImpl, "ks1", "tbl1", listMap, Arrays.asList("col1"));
+        assertNotNull(select2);
+
+        // Case 3: propertyMap with single value
+        Map<String, Object> singleMap = new HashMap<>();
+        singleMap.put("col1", "v1");
+        Select select3 = (Select) method.invoke(cassandraOperationImpl, "ks1", "tbl1", singleMap, Arrays.asList("col1"));
+        assertNotNull(select3);
     }
 }

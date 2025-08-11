@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -176,4 +178,32 @@ class Base64UtilTest {
         byte[] expected = {65, 81, 73, 68, 66, 65, 85, 61};
         assertArrayEquals(expected, result);
     }
+
+    @Test
+    void testEncodeToString_validInput() {
+        byte[] input = "hello world".getBytes(StandardCharsets.UTF_8);
+
+        String encoded = Base64Util.encodeToString(input, 0, input.length, 0);
+
+        assertEquals("aGVsbG8gd29ybGQ=\n", encoded);
+    }
+
+    @Test
+    void testEncodeToString_partialInput() {
+        byte[] input = "hello world".getBytes(StandardCharsets.UTF_8);
+
+        String encoded = Base64Util.encodeToString(input, 6, 5, 0);
+
+        assertEquals("d29ybGQ=\n", encoded);  // "world"
+    }
+
+    @Test
+    void testEncodeToString_withEmptyArray() {
+        byte[] input = new byte[0];
+
+        String encoded = Base64Util.encodeToString(input, 0, 0, 0);
+
+        assertEquals("", encoded);
+    }
+
 }
