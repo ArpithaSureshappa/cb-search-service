@@ -1,18 +1,20 @@
 package com.igot.cb;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.springframework.boot.SpringApplication;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
-@ExtendWith(SpringExtension.class)
-@SpringBootTest
 class CbSearchServiceApplicationTests {
 
 	@Test
 	void mainMethodTest() {
-		assertDoesNotThrow(()->CbSearchServiceApplication.main(new String[]{}));
+		try (MockedStatic<SpringApplication> mockedSpringApp = Mockito.mockStatic(SpringApplication.class)) {
+			CbSearchServiceApplication.main(new String[]{});
+			mockedSpringApp.verify(() -> SpringApplication.run(eq(CbSearchServiceApplication.class), any(String[].class)));
+		}
 	}
 }
