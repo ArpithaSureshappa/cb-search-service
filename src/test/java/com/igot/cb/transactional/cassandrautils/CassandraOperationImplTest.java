@@ -46,8 +46,18 @@ class CassandraOperationImplTest {
     @Mock
     private ResultSet mockResultSet;
 
+    @Mock
+    private CqlSession session;
+
+    @Mock
+    private ResultSet resultSet;
+
     private final String keyspaceName = "testKeyspace";
     private final String tableName = "testTable";
+
+    private String keyspace = "ks";
+    private String table = "tbl";
+
 
     @BeforeEach
     void setUp() {
@@ -306,7 +316,7 @@ class CassandraOperationImplTest {
     void testProcessQuery_WithInFilter() throws Exception {
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put("type", Arrays.asList("USER", "ADMIN"));
-        List<String> fields = Arrays.asList("id");
+        List<String> fields = List.of("id");
 
         Method method = getProcessQueryMethod();
         Select select = (Select) method.invoke(cassandraOperationImpl, "ks3", "tbl3", propertyMap, fields);
@@ -417,7 +427,7 @@ class CassandraOperationImplTest {
     void testGetRecordsByPropertiesByKey_emptyPropertyMap() {
         // Given
         Map<String, Object> propertyMap = Collections.emptyMap();
-        List<String> fields = Arrays.asList("col1");
+        List<String> fields = List.of("col1");
 
         try (MockedStatic<CassandraUtil> utilMock = mockStatic(CassandraUtil.class)) {
             utilMock.when(() -> CassandraUtil.createResponse(mockResultSet))
@@ -434,7 +444,7 @@ class CassandraOperationImplTest {
     void testGetRecordsByPropertiesByKey_exceptionCase() {
         // Given
         Map<String, Object> propertyMap = Collections.emptyMap();
-        List<String> fields = Arrays.asList("col1");
+        List<String> fields = List.of("col1");
 
         List<Map<String, Object>> result = cassandraOperationImpl.getRecordsByPropertiesByKey(
                 "ks1", "tbl1", propertyMap, fields, "someKey");
@@ -450,19 +460,126 @@ class CassandraOperationImplTest {
 
         // Case 1: Empty propertyMap
         Map<String, Object> emptyMap = Collections.emptyMap();
-        Select select = (Select) method.invoke(cassandraOperationImpl, "ks1", "tbl1", emptyMap, Arrays.asList("col1"));
+        Select select = (Select) method.invoke(cassandraOperationImpl, "ks1", "tbl1", emptyMap, List.of("col1"));
         assertNotNull(select);
 
         // Case 2: propertyMap with List value
         Map<String, Object> listMap = new HashMap<>();
-        listMap.put("col1", Arrays.asList("v1"));
-        Select select2 = (Select) method.invoke(cassandraOperationImpl, "ks1", "tbl1", listMap, Arrays.asList("col1"));
+        listMap.put("col1", List.of("v1"));
+        Select select2 = (Select) method.invoke(cassandraOperationImpl, "ks1", "tbl1", listMap, List.of("col1"));
         assertNotNull(select2);
 
         // Case 3: propertyMap with single value
         Map<String, Object> singleMap = new HashMap<>();
         singleMap.put("col1", "v1");
-        Select select3 = (Select) method.invoke(cassandraOperationImpl, "ks1", "tbl1", singleMap, Arrays.asList("col1"));
+        Select select3 = (Select) method.invoke(cassandraOperationImpl, "ks1", "tbl1", singleMap, List.of("col1"));
         assertNotNull(select3);
     }
+
+    private Select invokeProcessQueryWithoutFiltering(
+            String keyspace, String table, Map<String, Object> propertyMap, List<String> fields) throws Exception {
+
+        Method method = CassandraOperationImpl.class.getDeclaredMethod(
+                "processQueryWithoutFiltering", String.class, String.class, Map.class, List.class);
+        method.setAccessible(true);
+        return (Select) method.invoke(cassandraOperation, keyspace, table, propertyMap, fields);
+    }
+
+    @Test
+    void testFieldsNonEmpty_PropertyMapNonEmpty_ValueIsList_NonEmptyList() throws Exception {
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put("col1", Arrays.asList("val1", "val2"));
+        List<String> fields = Arrays.asList("f1", "f2");
+
+        Select select = invokeProcessQueryWithoutFiltering("ks1", "tbl1", propertyMap, fields);
+
+        String query = select.asCql();
+        assertTrue(query.contains("SELECT f1,f2 FROM ks1.tbl1 WHERE col1 IN"));
+    }
+
+    @Test
+    void testFieldsNonEmpty_PropertyMapNonEmpty_ValueIsList_EmptyList() throws Exception {
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put("col1", Collections.emptyList());
+        List<String> fields = List.of("f1");
+
+        Select select = invokeProcessQueryWithoutFiltering("ks1", "tbl1", propertyMap, fields);
+
+        String query = select.asCql();
+        // No WHERE clause expected because list is empty
+        assertTrue(query.startsWith("SELECT f1 FROM ks1.tbl1"));
+    }
+
+    @Test
+    void testFieldsNonEmpty_PropertyMapNonEmpty_ValueNotList() throws Exception {
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put("col1", "singleVal");
+        List<String> fields = List.of("f1");
+
+        Select select = invokeProcessQueryWithoutFiltering("ks1", "tbl1", propertyMap, fields);
+
+        String query = select.asCql();
+        assertTrue(query.contains("WHERE col1='singleVal'"));
+    }
+
+    @Test
+    void testFieldsEmpty_PropertyMapEmpty() throws Exception {
+        Map<String, Object> propertyMap = Collections.emptyMap();
+        List<String> fields = Collections.emptyList();
+
+        Select select = invokeProcessQueryWithoutFiltering("ks1", "tbl1", propertyMap, fields);
+
+        String query = select.asCql();
+        assertEquals("SELECT * FROM ks1.tbl1", query);
+    }
+
+    @Test
+    void testGetRecordsByPropertiesByKey_success() {
+        // Arrange
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put("id", "123");
+        List<String> fields = Arrays.asList("id", "name");
+        
+        when(connectionManager.getSession(keyspace)).thenReturn(mockSession);
+        when(mockSession.execute(any(SimpleStatement.class))).thenReturn(mockResultSet);
+        
+        List<Map<String, Object>> expectedResponse = Arrays.asList(
+            Map.of("id", "123", "name", "Ajay")
+        );
+        
+        try (MockedStatic<CassandraUtil> utilMock = mockStatic(CassandraUtil.class)) {
+            utilMock.when(() -> CassandraUtil.createResponse(mockResultSet))
+                    .thenReturn(expectedResponse);
+
+            // Act
+            List<Map<String, Object>> actual = cassandraOperation.getRecordsByPropertiesByKey(
+                    keyspace, table, propertyMap, fields, "key"
+            );
+
+            // Assert
+            assertEquals(expectedResponse, actual);
+            assertEquals(1, actual.size());
+            assertEquals("123", actual.get(0).get("id"));
+            assertEquals("Ajay", actual.get(0).get("name"));
+        }
+    }
+
+    @Test
+    void testGetRecordsByPropertiesByKey_exception() {
+        // Arrange
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put("id", "123");
+        List<String> fields = Arrays.asList("id", "name");
+        
+        when(connectionManager.getSession(keyspace)).thenThrow(new RuntimeException("DB error"));
+
+        // Act
+        List<Map<String, Object>> actual = cassandraOperation.getRecordsByPropertiesByKey(
+                keyspace, table, propertyMap, fields, "key"
+        );
+
+        // Assert
+        assertTrue(actual.isEmpty());
+    }
+
 }

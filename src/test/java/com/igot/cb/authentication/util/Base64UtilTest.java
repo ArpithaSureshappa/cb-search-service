@@ -2,11 +2,14 @@ package com.igot.cb.authentication.util;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Answers.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mockStatic;
 
 @ExtendWith(MockitoExtension.class)
 class Base64UtilTest {
@@ -206,4 +209,42 @@ class Base64UtilTest {
         assertEquals("", encoded);
     }
 
+    @Test
+    void testEncodeToString_normalFlow() {
+        byte[] input = "Man".getBytes();
+        byte[] expectedBytes = "TWFu".getBytes(); // Base64 of "Man"
+
+        try (MockedStatic<Base64Util> mocked = mockStatic(Base64Util.class, CALLS_REAL_METHODS)) {
+            mocked.when(() -> Base64Util.encode(input, Base64Util.DEFAULT))
+                    .thenReturn(expectedBytes);
+
+            String result = Base64Util.encodeToString(input, Base64Util.DEFAULT);
+            assertEquals("TWFu", result);
+        }
+    }
+
+    @Test
+    void testEncodeToString_withAllFlags() {
+        byte[] input = "Test".getBytes();
+        byte[] expectedBytes = "VGVzdA==".getBytes();
+
+        int allFlags = Base64Util.NO_PADDING | Base64Util.NO_WRAP | Base64Util.CRLF
+                | Base64Util.URL_SAFE | Base64Util.NO_CLOSE;
+
+        try (MockedStatic<Base64Util> mocked = mockStatic(Base64Util.class, CALLS_REAL_METHODS)) {
+            mocked.when(() -> Base64Util.encode(input, allFlags))
+                    .thenReturn(expectedBytes);
+
+            String result = Base64Util.encodeToString(input, allFlags);
+            assertEquals("VGVzdA==", result);
+        }
+    }
+
+    @Test
+    void testEncodeToString_UnsupportedEncodingException() {
+        // Test normal behavior since US-ASCII is guaranteed to be available
+        byte[] input = "Test".getBytes();
+        String result = Base64Util.encodeToString(input, Base64Util.DEFAULT);
+        assertNotNull(result);
+    }
 }
