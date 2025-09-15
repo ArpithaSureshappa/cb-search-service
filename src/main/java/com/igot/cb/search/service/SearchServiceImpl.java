@@ -20,21 +20,24 @@ import java.util.*;
 @Slf4j
 public class SearchServiceImpl implements SearchService {
 
-    @Autowired
-    private AccessTokenValidator accessTokenValidator;
+    private final AccessTokenValidator accessTokenValidator;
+    private final CassandraOperation cassandraOperation;
+    private final CacheService cacheService;
+    private final ObjectMapper objectMapper;
+    private final CbServerProperties cbServerProperties;
 
     @Autowired
-    private CassandraOperation cassandraOperation;
-
-    @Autowired
-    private CacheService cacheService;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private CbServerProperties cbServerProperties;
-
+    public SearchServiceImpl(AccessTokenValidator accessTokenValidator,
+                             CassandraOperation cassandraOperation,
+                             CacheService cacheService,
+                             ObjectMapper objectMapper,
+                             CbServerProperties cbServerProperties) {
+        this.accessTokenValidator = accessTokenValidator;
+        this.cassandraOperation = cassandraOperation;
+        this.cacheService = cacheService;
+        this.objectMapper = objectMapper;
+        this.cbServerProperties = cbServerProperties;
+    }
     @Override
     public ApiResponse createUserRecentSearches(JsonNode searchQuery, String token) {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_RECENT_SEARCH_CREATE);
