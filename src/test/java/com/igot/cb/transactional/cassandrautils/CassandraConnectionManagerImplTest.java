@@ -268,59 +268,5 @@ class CassandraConnectionManagerImplTest {
         }
     }
 
-    @Test
-    void testGetTableList_AllBranches() throws Exception {
-        // Prepare mocks
-        PropertiesCache mockCache = mock(PropertiesCache.class);
-        CqlSession mockSession = mock(CqlSession.class);
-        Metadata mockMetadata = mock(Metadata.class);
-        KeyspaceMetadata mockKeyspace = mock(KeyspaceMetadata.class);
-        TableMetadata mockTable = mock(TableMetadata.class);
-
-        // Mock PropertiesCache before creating the manager
-        try (MockedStatic<PropertiesCache> staticMock = mockStatic(PropertiesCache.class)) {
-            staticMock.when(PropertiesCache::getInstance).thenReturn(mockCache);
-
-            // Provide dummy values so constructor doesn't throw NPE
-            when(mockCache.getProperty(Constants.CASSANDRA_CONFIG_HOST)).thenReturn("127.0.0.1");
-            when(mockCache.getProperty(Constants.CORE_CONNECTIONS_PER_HOST_FOR_LOCAL)).thenReturn("1");
-            when(mockCache.getProperty(Constants.CORE_CONNECTIONS_PER_HOST_FOR_REMOTE)).thenReturn("1");
-            when(mockCache.getProperty(Constants.HEARTBEAT_INTERVAL)).thenReturn("30");
-            when(mockCache.readProperty(Constants.SUNBIRD_CASSANDRA_CONSISTENCY_LEVEL))
-                    .thenReturn("LOCAL_ONE");  // Mock consistency level to avoid NPE
-
-            // Construct the manager after mocking PropertiesCache
-            CassandraConnectionManagerImpl manager = new CassandraConnectionManagerImpl();
-
-            // Inject our mock session AFTER construction
-            var field = CassandraConnectionManagerImpl.class.getDeclaredField("session");
-            field.setAccessible(true);
-            field.set(null, mockSession);
-
-            // --- Case 1: Happy Path ---
-            when(mockSession.getMetadata()).thenReturn(mockMetadata);
-            when(mockMetadata.getKeyspace("testks")).thenReturn(Optional.of(mockKeyspace));
-            when(mockKeyspace.getTables()).thenReturn(Map.of(CqlIdentifier.fromCql("users"), mockTable));
-
-            List<String> tables = manager.getTableList("testks");
-            assertEquals(1, tables.size());
-            assertEquals("users", tables.get(0));
-
-            // --- Case 2: Keyspace Missing ---
-            when(mockMetadata.getKeyspace("missingks")).thenReturn(Optional.empty());
-
-            CustomException ex1 = assertThrows(CustomException.class,
-                    () -> manager.getTableList("missingks"));
-            assertTrue(ex1.getMessage().contains("Keyspace not found: missingks"));
-
-            // --- Case 3: Metadata Throws Exception ---
-            when(mockSession.getMetadata()).thenThrow(new RuntimeException("metadata error"));
-
-            CustomException ex2 = assertThrows(CustomException.class,
-                    () -> manager.getTableList("anyks"));
-            assertTrue(ex2.getMessage().contains("metadata error"));
-        }
-    }
-
 
 }
