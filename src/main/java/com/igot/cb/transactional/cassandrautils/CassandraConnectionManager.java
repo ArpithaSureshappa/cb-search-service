@@ -2,7 +2,6 @@ package com.igot.cb.transactional.cassandrautils;
 
 import com.datastax.oss.driver.api.core.CqlSession;
 
-import java.util.List;
 
 public interface CassandraConnectionManager {
 
