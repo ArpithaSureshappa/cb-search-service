@@ -14,6 +14,5 @@ public interface CassandraConnectionManager {
      */
     CqlSession getSession(String keyspaceName);
 
-    List<String> getTableList(String keyspacename);
 
 }

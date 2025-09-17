@@ -78,4 +78,43 @@ class PayloadValidationTest {
         assertTrue(exception.getCode().contains("Failed to validate payload"));
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatusCode());
     }
+
+    @Test
+    void testValidatePayload_withArrayOfObjects() throws Exception {
+        // Arrange
+        InputStream schemaStream = getClass().getResourceAsStream("/test-schema.json");
+        assertNotNull(schemaStream, "Test schema should be present in resources as /test-schema.json");
+
+        String validArrayJson = """
+        [
+          { "name": "Alice", "age": 30 },
+          { "name": "Bob", "age": 25 }
+        ]
+        """;
+
+        JsonNode payload = objectMapper.readTree(validArrayJson);
+
+        // Act & Assert
+        assertDoesNotThrow(() -> payloadValidation.validatePayload("/test-schema.json", payload));
+    }
+
+    @Test
+    void testValidatePayload_withArrayValidationFailure() throws Exception {
+        String invalidArrayJson = """
+        [
+          { "name": "Alice", "age": 30 },
+          { "name": 123, "age": "not-a-number" }
+        ]
+        """;
+
+        JsonNode payload = objectMapper.readTree(invalidArrayJson);
+
+        CustomException exception = assertThrows(CustomException.class, () ->
+                payloadValidation.validatePayload("/test-schema.json", payload));
+
+        assertTrue(exception.getMessage().contains("Validation error(s):"));
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatusCode());
+    }
+
+
 }
