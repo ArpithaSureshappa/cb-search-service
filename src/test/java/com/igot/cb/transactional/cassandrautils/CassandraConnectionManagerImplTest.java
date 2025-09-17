@@ -3,7 +3,6 @@ package com.igot.cb.transactional.cassandrautils;
 import com.datastax.oss.driver.api.core.*;
 import com.datastax.oss.driver.api.core.metadata.Metadata;
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
-import com.datastax.oss.driver.api.core.metadata.schema.TableMetadata;
 import com.igot.cb.exceptions.CustomException;
 import com.igot.cb.util.Constants;
 import com.igot.cb.util.PropertiesCache;
@@ -17,9 +16,7 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.lang.reflect.Method;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 
 import static org.junit.jupiter.api.Assertions.*;
