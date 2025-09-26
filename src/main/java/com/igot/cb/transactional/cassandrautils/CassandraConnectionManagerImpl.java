@@ -151,32 +151,6 @@ public class CassandraConnectionManagerImpl implements CassandraConnectionManage
         return null;
     }
 
-    @Override
-    public List<String> getTableList(String keyspaceName) {
-        try {
-            // Fetch the metadata for the keyspace and list tables
-            Metadata metadata = session.getMetadata();
-            if (metadata.getKeyspace(keyspaceName).isPresent()) {
-                // Convert the Map<CqlIdentifier, TableMetadata> to a List<String> with table names
-                Map<CqlIdentifier, TableMetadata> tables = metadata.getKeyspace(keyspaceName).get().getTables();
-                return tables.keySet().stream()
-                        .map(CqlIdentifier::toString)
-                        .collect(Collectors.toList());
-            } else {
-                throw new CustomException(
-                        Constants.ERROR,
-                        "Keyspace not found: " + keyspaceName,
-                        HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        } catch (Exception e) {
-            log.error("Error fetching tables for keyspace: " + keyspaceName, e);
-            throw new CustomException(
-                    Constants.ERROR,
-                    e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
     public static void registerShutDownHook() {
         Runtime runtime = Runtime.getRuntime();
         runtime.addShutdownHook(new ResourceCleanUp());
