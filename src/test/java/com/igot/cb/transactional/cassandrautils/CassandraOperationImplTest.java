@@ -83,7 +83,6 @@ class CassandraOperationImplTest {
             ApiResponse mockResponse = new ApiResponse();
             mockResponse.put(Constants.RESPONSE, Constants.SUCCESS);
 
-            // Act - pass the new fourth TTL parameter as null
             ApiResponse response = (ApiResponse) cassandraOperation.insertRecord(keyspaceName, tableName, request, null);
 
             // Manually set the response for testing
@@ -109,7 +108,6 @@ class CassandraOperationImplTest {
             when(mockPreparedStatement.bind(any())).thenReturn(mockBoundStatement);
             when(mockSession.execute(any(BoundStatement.class))).thenThrow(new RuntimeException("Test exception"));
 
-            // Act - pass the new fourth TTL parameter as null
             ApiResponse response = (ApiResponse) cassandraOperation.insertRecord(keyspaceName, tableName, request, null);
 
             // Assert
