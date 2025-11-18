@@ -72,20 +72,20 @@ class CassandraOperationImplTest {
         request.put("name", "Test");
         when(connectionManager.getSession(anyString())).thenReturn(mockSession);
         try (MockedStatic<CassandraUtil> cassandraUtilMockedStatic = Mockito.mockStatic(CassandraUtil.class)) {
-            cassandraUtilMockedStatic.when(() -> CassandraUtil.getPreparedStatement(anyString(), anyString(), any()))
+            cassandraUtilMockedStatic.when(() -> CassandraUtil.getPreparedStatement(anyString(), anyString(), any(), any()))
                     .thenReturn("INSERT INTO testKeyspace.testTable (id, name) VALUES (?, ?)");
 
             when(mockSession.prepare(anyString())).thenReturn(mockPreparedStatement);
             when(mockPreparedStatement.bind(any())).thenReturn(mockBoundStatement);
             when(mockSession.execute(any(BoundStatement.class))).thenReturn(mockResultSet);
-            
+
             // Create a response map with success
             ApiResponse mockResponse = new ApiResponse();
             mockResponse.put(Constants.RESPONSE, Constants.SUCCESS);
-            
-            // Act
-            ApiResponse response = (ApiResponse) cassandraOperation.insertRecord(keyspaceName, tableName, request);
-            
+
+            // Act - pass the new fourth TTL parameter as null
+            ApiResponse response = (ApiResponse) cassandraOperation.insertRecord(keyspaceName, tableName, request, null);
+
             // Manually set the response for testing
             response.put(Constants.RESPONSE, Constants.SUCCESS);
 
@@ -102,15 +102,15 @@ class CassandraOperationImplTest {
         request.put("id", "123");
         when(connectionManager.getSession(anyString())).thenReturn(mockSession);
         try (MockedStatic<CassandraUtil> cassandraUtilMockedStatic = Mockito.mockStatic(CassandraUtil.class)) {
-            cassandraUtilMockedStatic.when(() -> CassandraUtil.getPreparedStatement(anyString(), anyString(), any()))
+            cassandraUtilMockedStatic.when(() -> CassandraUtil.getPreparedStatement(anyString(), anyString(), any(), any()))
                     .thenReturn("INSERT INTO testKeyspace.testTable (id) VALUES (?)");
 
             when(mockSession.prepare(anyString())).thenReturn(mockPreparedStatement);
             when(mockPreparedStatement.bind(any())).thenReturn(mockBoundStatement);
             when(mockSession.execute(any(BoundStatement.class))).thenThrow(new RuntimeException("Test exception"));
 
-            // Act
-            ApiResponse response = (ApiResponse) cassandraOperation.insertRecord(keyspaceName, tableName, request);
+            // Act - pass the new fourth TTL parameter as null
+            ApiResponse response = (ApiResponse) cassandraOperation.insertRecord(keyspaceName, tableName, request, null);
 
             // Assert
             assertEquals("Failed", response.get(Constants.RESPONSE));
@@ -243,7 +243,7 @@ class CassandraOperationImplTest {
         // Arrange
         Map<String, Object> updateAttributes = new HashMap<>();
         updateAttributes.put("name", "Updated Name");
-        
+
         Map<String, Object> compositeKey = new HashMap<>();
         compositeKey.put("id", "123");
         when(connectionManager.getSession(anyString())).thenReturn(mockSession);
@@ -262,7 +262,7 @@ class CassandraOperationImplTest {
         // Arrange
         Map<String, Object> updateAttributes = new HashMap<>();
         updateAttributes.put("name", "Updated Name");
-        
+
         Map<String, Object> compositeKey = new HashMap<>();
         compositeKey.put("id", "123");
         when(connectionManager.getSession(anyString())).thenReturn(mockSession);
@@ -539,14 +539,14 @@ class CassandraOperationImplTest {
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put("id", "123");
         List<String> fields = Arrays.asList("id", "name");
-        
+
         when(connectionManager.getSession(keyspace)).thenReturn(mockSession);
         when(mockSession.execute(any(SimpleStatement.class))).thenReturn(mockResultSet);
-        
+
         List<Map<String, Object>> expectedResponse = Arrays.asList(
-            Map.of("id", "123", "name", "Ajay")
+                Map.of("id", "123", "name", "Ajay")
         );
-        
+
         try (MockedStatic<CassandraUtil> utilMock = mockStatic(CassandraUtil.class)) {
             utilMock.when(() -> CassandraUtil.createResponse(mockResultSet))
                     .thenReturn(expectedResponse);
@@ -570,7 +570,7 @@ class CassandraOperationImplTest {
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put("id", "123");
         List<String> fields = Arrays.asList("id", "name");
-        
+
         when(connectionManager.getSession(keyspace)).thenThrow(new RuntimeException("DB error"));
 
         // Act

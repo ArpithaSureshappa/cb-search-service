@@ -19,7 +19,7 @@ public class Constants {
     public static final String VALUES_WITH_BRACE = ") VALUES (";
     public static final String QUE_MARK = "?";
     public static final String COMMA = ",";
-    public static final String CLOSING_BRACE = ");";
+    public static final String CLOSING_BRACE = ")";
     public static final String RESPONSE = "response";
     public static final String SUCCESS = "success";
     public static final String FAILED = "Failed";
@@ -63,7 +63,9 @@ public class Constants {
     public static final String UNKNOWN_IDENTIFIER = "Unknown identifier ";
     public static final String EXCEPTION_MSG_UPDATE = "Exception occurred while updating record to ";
     public static final String API_RECENT_SEARCH_CREATE = "api.recent.search.create";
-    public static final String TABLE_USER_RECENT_SEARCH = "user_recent_searches";
+    public static final String TABLE_USER_RECENT_SEARCH = "recent_searches_by_user";
+    public static final String TABLE_SEARCH_INDEX_BY_USER = "search_index_by_user";
+    public static final String TABLE_USER_RECENT_SEARCH_AUDIT = "recent_searches_history";
     public static final String API_RECENT_SEARCH_READ = "api.recent.search.read";
     public static final String API_TRENDING_SEARCH_CREATE = "api.trending.search.create";
     public static final String API_RECENT_SEARCH_DELETE = "api.recent.search.delete";
@@ -85,8 +87,11 @@ public class Constants {
     public static final String SEARCH_QUERY_KEY = "searchQuery";
     public static final String NLP_SEARCH_QUERY_KEY = "nlpSearchQuery";
     public static final String SEARCH_QUERY = "search_query";
-    public static final String IS_ACTIVE = "is_active";
-
+    public static final String QUERY_NORM = "query_norm";
+    public static final String OPERATION = "op";
+    public static final Object REMOVE = "REMOVE";
+    public static final String SEARCH_QUERIES = "searchQueries";
+    public static final Object ADD = "ADD";
 
 
     private Constants() {

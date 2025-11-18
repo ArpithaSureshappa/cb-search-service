@@ -13,7 +13,7 @@ public final class CassandraUtil {
 
     private static final CassandraPropertyReader propertiesCache = CassandraPropertyReader.getInstance();
 
-    public static String getPreparedStatement(String keyspaceName, String tableName, Map<String, Object> map) {
+    public static String getPreparedStatement(String keyspaceName, String tableName, Map<String, Object> map,Integer ttl) {
         StringBuilder query = new StringBuilder();
         query.append(Constants.INSERT_INTO).append(keyspaceName).append(Constants.DOT).append(tableName).append(Constants.OPEN_BRACE);
         Set<String> keySet = map.keySet();
@@ -26,6 +26,10 @@ public final class CassandraUtil {
             }
         }
         query.append(commaSepValueBuilder).append(Constants.CLOSING_BRACE);
+        if (ttl != null && ttl > 0) {
+            query.append(" USING TTL ").append(ttl).append(Constants.SEMICOLON);
+        }
+
         return query.toString();
     }
 

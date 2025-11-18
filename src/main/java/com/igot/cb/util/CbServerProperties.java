@@ -12,4 +12,7 @@ import org.springframework.stereotype.Component;
 public class CbServerProperties {
   @Value("${recent.searches.limit}")
   private Integer recentSearchesLimit;
+
+  @Value("${isAuditTableEntryEnabled}")
+  private Boolean isAuditTableEntryEnabled;
 }

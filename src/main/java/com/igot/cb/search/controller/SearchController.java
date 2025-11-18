@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/search")
 public class SearchController {
@@ -34,7 +36,7 @@ public class SearchController {
     }
 
     @DeleteMapping("/v1/recent/delete/timestamp/{timestamp}")
-    public ResponseEntity<ApiResponse> deleteUserRecentSearchesByUniqueId(@RequestHeader(Constants.X_AUTH_TOKEN) String token, @PathVariable Long timestamp) {
+    public ResponseEntity<ApiResponse> deleteUserRecentSearchesByUniqueId(@RequestHeader(Constants.X_AUTH_TOKEN) String token, @PathVariable UUID timestamp) {
         ApiResponse response = searchService.deleteUserRecentSearchesByTimestamp(token,timestamp);
         return new ResponseEntity<>(response, response.getResponseCode());
     }

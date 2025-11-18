@@ -16,6 +16,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.UUID;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -90,7 +92,8 @@ class SearchControllerTest {
         mockResponse.put("message", "Search deleted successfully");
         when(searchService.deleteUserRecentSearchesByTimestamp(anyString(), any())).thenReturn(mockResponse);
 
-        mockMvc.perform(delete("/search/v1/recent/delete/timestamp/12345")
+        UUID ts = UUID.randomUUID(); // use a valid UUID so Spring can bind the path variable
+        mockMvc.perform(delete("/search/v1/recent/delete/timestamp/" + ts.toString())
                         .header(Constants.X_AUTH_TOKEN, "test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.message").value("Search deleted successfully"));

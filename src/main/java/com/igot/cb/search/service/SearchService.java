@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.igot.cb.util.ApiResponse;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 
 @Service
 public interface SearchService {
@@ -13,5 +15,5 @@ public interface SearchService {
 
     ApiResponse deleteUserAllRecentSearches(String token);
 
-    ApiResponse deleteUserRecentSearchesByTimestamp(String token,Long timestamp);
+    ApiResponse deleteUserRecentSearchesByTimestamp(String token, UUID timestamp);
 }

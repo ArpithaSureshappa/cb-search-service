@@ -111,10 +111,10 @@ public class CassandraOperationImpl implements CassandraOperation {
     }
 
     @Override
-    public Object insertRecord(String keyspaceName, String tableName, Map<String, Object> request) {
+    public Object insertRecord(String keyspaceName, String tableName, Map<String, Object> request, Integer ttl) {
         ApiResponse response = new ApiResponse();
         try {
-            String query = CassandraUtil.getPreparedStatement(keyspaceName, tableName, request);
+            String query = CassandraUtil.getPreparedStatement(keyspaceName, tableName, request,ttl);
             CqlSession session = connectionManager.getSession(keyspaceName);
             PreparedStatement statement = session.prepare(query);
             BoundStatement boundStatement = statement.bind(request.values().toArray());

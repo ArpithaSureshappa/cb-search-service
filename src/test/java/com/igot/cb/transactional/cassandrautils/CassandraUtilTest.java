@@ -44,10 +44,12 @@ class CassandraUtilTest {
     void testGetPreparedStatement() {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", 1);
-        data.put("name", "Mahesh");
+        data.put("name", "user");
 
-        String actual = CassandraUtil.getPreparedStatement("test_keyspace", "test_table", data);
-        String expected = "INSERT INTO test_keyspace.test_table(id,name) VALUES (?,?);";
+        // Pass fourth TTL parameter (null when TTL not required)
+        String actual = CassandraUtil.getPreparedStatement("test_keyspace", "test_table", data, null);
+        // Match actual output which does not include a trailing semicolon
+        String expected = "INSERT INTO test_keyspace.test_table(id,name) VALUES (?,?)";
         assertEquals(expected, actual);
     }
 
