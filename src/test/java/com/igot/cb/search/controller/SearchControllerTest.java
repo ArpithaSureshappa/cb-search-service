@@ -2,7 +2,6 @@ package com.igot.cb.search.controller;
 
 
 import com.igot.cb.search.service.SearchService;
-import com.igot.cb.util.ApiResponse;
 import com.igot.cb.util.Constants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +22,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import org.igot.common.ApiResponse;
 
 
 @ExtendWith(MockitoExtension.class)

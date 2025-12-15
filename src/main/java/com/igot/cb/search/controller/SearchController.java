@@ -2,9 +2,9 @@ package com.igot.cb.search.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.igot.cb.search.service.SearchService;
-import com.igot.cb.util.ApiResponse;
 import com.igot.cb.util.Constants;
-import org.springframework.beans.factory.annotation.Autowired;
+
+import org.igot.common.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,8 +12,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/search")
 public class SearchController {
 
-    @Autowired
     private SearchService searchService;
+
+    public SearchController(SearchService searchService) {
+        this.searchService = searchService;
+    }
 
     @PostMapping("/v1/recent/create")
     public ResponseEntity<ApiResponse> createUserRecentSearches(@RequestBody JsonNode searchQuery, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {

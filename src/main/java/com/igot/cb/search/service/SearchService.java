@@ -1,7 +1,8 @@
 package com.igot.cb.search.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.igot.cb.util.ApiResponse;
+
+import org.igot.common.ApiResponse;
 import org.springframework.stereotype.Service;
 
 
